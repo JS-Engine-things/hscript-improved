@@ -68,7 +68,6 @@ class Interp {
 	}
 	public var errorHandler:Error->Void;
 	public var importFailedCallback:Array<String>->Bool;
-	#if haxe3
 	public var customClasses:Map<String, Dynamic>;
 	public var variables:Map<String, Dynamic>;
 	public var publicVariables:Map<String, Dynamic>;
@@ -76,15 +75,6 @@ class Interp {
 
 	public var locals:Map<String, {r:Dynamic, depth:Int}>;
 	var binops:Map<String, Expr->Expr->Dynamic>;
-	#else
-	public var customClasses:Hash<Dynamic>;
-	public var variables:Hash<Dynamic>;
-	public var publicVariables:Hash<Dynamic>;
-	public var staticVariables:Hash<Dynamic>;
-
-	public var locals:Hash<{r:Dynamic, depth:Int}>;
-	var binops:Hash<Expr->Expr->Dynamic>;
-	#end
 
 	var depth:Int = 0;
 	var inTry:Bool;
@@ -111,28 +101,17 @@ class Interp {
 	#end
 
 	public function new() {
-		#if haxe3
 		locals = new Map();
-		#else
-		locals = new Hash();
-		#end
 		declared = new Array();
 		resetVariables();
 		initOps();
 	}
 
 	private function resetVariables() {
-		#if haxe3
 		customClasses = new Map<String, Dynamic>();
 		variables = new Map<String, Dynamic>();
 		publicVariables = new Map<String, Dynamic>();
 		staticVariables = new Map<String, Dynamic>();
-		#else
-		customClasses = new Hash();
-		variables = new Hash();
-		publicVariables = new Hash();
-		staticVariables = new Hash();
-		#end
 
 		variables.set("null", null);
 		variables.set("true", true);
@@ -156,11 +135,7 @@ class Interp {
 
 	function initOps() {
 		var me = this;
-		#if haxe3
 		binops = new Map();
-		#else
-		binops = new Hash();
-		#end
 		binops.set("+", function(e1, e2) return me.expr(e1) + me.expr(e2));
 		binops.set("-", function(e1, e2) return me.expr(e1) - me.expr(e2));
 		binops.set("*", function(e1, e2) return me.expr(e1) * me.expr(e2));
@@ -186,12 +161,7 @@ class Interp {
 			var expr1:Dynamic = me.expr(e1);
 			return expr1 == null ? me.expr(e2) : expr1;
 		});
-		binops.set("...", function(e1, e2) return new
-			#if (haxe_211 || haxe3)
-			IntIterator
-			#else
-			IntIter
-			#end(me.expr(e1), me.expr(e2)));
+		binops.set("...", function(e1, e2) return new IntIterator(me.expr(e1), me.expr(e2)));
 		assignOp("+=", function(v1:Dynamic, v2:Dynamic) return v1 + v2);
 		assignOp("-=", function(v1:Float, v2:Float) return v1 - v2);
 		assignOp("*=", function(v1:Float, v2:Float) return v1 * v2);
@@ -384,11 +354,7 @@ class Interp {
 
 	public function execute(expr:Expr):Dynamic {
 		depth = 0;
-		#if haxe3
 		locals = new Map();
-		#else
-		locals = new Hash();
-		#end
 		declared = new Array();
 		return exprReturn(expr);
 	}
@@ -424,12 +390,8 @@ class Interp {
 		return null;
 	}
 
-	public function duplicate<T>(h:#if haxe3 Map<String, T> #else Hash<T> #end) {
-		#if haxe3
+	public function duplicate<T>(h:Map<String, T>) {
 		var h2 = new Map();
-		#else
-		var h2 = new Hash();
-		#end
 		for (k in h.keys())
 			h2.set(k, h.get(k));
 		return h2;
@@ -609,9 +571,6 @@ class Interp {
 					case CInt(v): return v;
 					case CFloat(f): return f;
 					case CString(s): return s;
-					#if !haxe3
-					case CInt32(v): return v;
-					#end
 				}
 			case EIdent(id):
 				return resolve(id);
@@ -658,11 +617,7 @@ class Interp {
 					case "--":
 						return increment(e, prefix, -1);
 					case "~":
-						#if (neko && !haxe3)
-						return haxe.Int32.complement(expr(e));
-						#else
 						return ~expr(e);
-						#end
 					default:
 						error(EInvalidOp(op));
 				}
